@@ -1,0 +1,30 @@
+
+.openerp .oe_view_manager .oe_view_manager_switch .oe_vm_switch_fgantt:after {
+    content: "N";
+}
+
+/* .vis-fgantt .vis-grid.vis-saturday,
+.vis-fgantt .vis-grid.vis-sunday {
+    background: #DCDCDC;
+}
+
+.vis-item .vis-item-overflow {
+    overflow: visible;
+} */
+
+.oe_chatter_toggle {
+    padding: 15px;
+}
+
+.oe_fgantt_view .vlabel .inner:hover{
+    cursor: pointer;
+}
+
+.oe_fgantt_view svg.oe_fgantt_view_canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    left: 0px;
+    top: 0px;
+}
