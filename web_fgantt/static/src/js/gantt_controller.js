@@ -92,6 +92,7 @@ odoo.define('web_fgantt.GanttController', function (require) {
             var task = event.data.task;
             var task_start = event.data.start;
             var task_end = event.data.end;
+            console.log('task_start', task_start, 'task_end', task_end)
 
             var data = {};
             // In case of a move event, the date_delay stay the same, only date_start and stop must be updated
