@@ -11,24 +11,28 @@
         <field name="type">fgantt</field>
         <field name="arch" type="xml">
             <fgantt date_start="date_start"
-                      date_stop="date_end"
-                      default_group_by="project_id"
-                      progress="progress"
-                      event_open_popup="true">
+                    date_stop="date_end"
+                    default_group_by="project_id"
+                    progress="progress"
+                    event_open_popup="true">
                 <field name="user_id"/>
                 <field name="planned_hours"/>
                 <templates>
                     <t t-name="fgantt-item">
                         <div class="o_project_fgantt_item">
                             <img t-if="record.user_id"
-                                 t-attf-src="/web/image/res.users/#{record.user_id[0]}/image/24x24"
-                                 t-att-title="record.user_id[1]" width="24" height="24" class="mr8"/>
+                                t-attf-src="/web/image/res.users/#{record.user_id[0]}/image/24x24"
+                                t-att-title="record.user_id[1]" width="24" height="24" class="mr8"/>
                             <span name="display_name">
                                 <t t-esc="record.display_name"/>
                             </span>
                             <small name="planned_hours" class="text-muted ml4">
                                 <t t-esc="field_utils.format.float_time(record.planned_hours)"/>
                             </small>
+                            <ul>
+                                <li><t t-esc="record.date_start"/></li>
+                                <li><t t-esc="record.date_end"/></li>
+                            </ul>
                         </div>
                     </t>
                 </templates>

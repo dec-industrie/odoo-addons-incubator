@@ -19,6 +19,7 @@
     ],
     "data":
         [
+            "templates/assets.xml",
             "views/project_project_view.xml",
             "views/project_task_view.xml",
         ],
