@@ -8,7 +8,6 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
     var session = require('web.session');
     var QWeb = require('web.QWeb');
     var field_utils = require('web.field_utils');
-    // var GanttCanvas = require('web_fgantt.GanttCanvas');
 
     var _t = core._t;
 
@@ -38,9 +37,7 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
             this.date_start = params.date_start;
             this.date_stop = params.date_stop;
             this.date_delay = params.date_delay;
-            this.colors = params.colors;
             this.fieldNames = params.fieldNames;
-            this.dependency_arrow = params.dependency_arrow;
             this.view = params.view;
             this.modelClass = this.view.model;
         },
@@ -51,11 +48,6 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
         start: function () {
             var self = this;
             var attrs = this.arch.attrs;
-            this.current_window = {
-                start: new moment(),
-                end: new moment().add(24, 'hours')
-            };
-
             this.$el.addClass(attrs.class);
             this.$gantt = this.$el.find("#oe_fgantt_widget");
 
@@ -69,14 +61,9 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
          * Triggered when the gantt is attached to the DOM.
          */
         on_attach_callback: function() {
-
-
             var height = this.$el.parent().height() - this.$el.find('.oe_fgantt_buttons').height();
             if (height > this.min_height) {
-
-                // this.gantt.setOptions({
-                //     height: height
-                // });
+                // TODO: Add support for min-height in frappe-gantt or its container
             }
         },
 
@@ -161,44 +148,12 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
         },
 
         /**
-         * Computes the initial visible window.
-         *
-         * @private
-         */
-        _computeMode: function () {
-            if (this.mode) {
-                var start = false, end = false;
-                switch (this.mode) {
-                    case 'day':
-                        start = new moment().startOf('day');
-                        end = new moment().endOf('day');
-                        break;
-                    case 'week':
-                        start = new moment().startOf('week');
-                        end = new moment().endOf('week');
-                        break;
-                    case 'month':
-                        start = new moment().startOf('month');
-                        end = new moment().endOf('month');
-                        break;
-                }
-                if (end && start) {
-                    this.options.start = start;
-                    this.options.end = end;
-                } else {
-                   this.mode = 'fit';
-                }
-            }
-        },
-
-        /**
          * Initializes the gantt (https://frappe.io/gantt).
          *
          * @private
          */
         init_gantt: function () {
             var self = this;
-            this._computeMode();
             // TODO: Add editable support to frappe-gantt
             /*
             this.options.editable = {
@@ -213,10 +168,6 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
             };
             */
             $.extend(this.options, {
-                // onAdd: self.on_add,
-                // onMove: self.on_move,
-                // onUpdate: self.on_update,
-                // onRemove: self.on_remove
                 custom_popup_html: function(task) {
                     self.custom_popup_html(task)
                 },
@@ -247,66 +198,12 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
             ]
             this.gantt = new Gantt(self.$gantt.empty().get(0), dummy_tasks, this.options);
 
+            // TODO: Add group support to frappe-gantt
             var group_bys = this.arch.attrs.default_group_by.split(',');
             this.last_group_bys = group_bys;
             this.last_domains = this.modelClass.data.domain;
             this.on_data_loaded(this.modelClass.data.records, group_bys);
         },
-
-        // /**
-        //  * Clears and draws the canvas items.
-        //  *
-        //  * @private
-        //  */
-        // draw_canvas: function () {
-        //     this.canvas.clear();
-        //     if (this.dependency_arrow) {
-        //         this.draw_dependencies();
-        //     }
-        // },
-
-        // /**
-        //  * Draw item dependencies on canvas.
-        //  *
-        //  * @private
-        //  */
-        // draw_dependencies: function () {
-        //     var self = this;
-        //     var items = this.gantt.itemSet.items;
-        //     _.each(items, function(item) {
-        //         if (!item.data.record) {
-        //             return;
-        //         }
-        //         _.each(item.data.record[self.dependency_arrow], function(id) {
-        //             if (id in items) {
-        //                 self.draw_dependency(item, items[id]);
-        //             }
-        //         });
-        //     });
-        // },
-
-        // /**
-        //  * Draws a dependency arrow between 2 gantt items.
-        //  *
-        //  * @param {Object} from Start gantt item
-        //  * @param {Object} to Destination gantt item
-        //  * @param {Object} options
-        //  * @param {Object} options.line_color Color of the line
-        //  * @param {Object} options.line_width The width of the line
-        //  * @private
-        //  */
-        // draw_dependency: function (from, to, options) {
-        //     if (!from.displayed || !to.displayed) {
-        //         return;
-        //     }
-
-        //     var defaults = _.defaults({}, options, {
-        //         line_color: 'black',
-        //         line_width: 1
-        //     });
-
-        //     this.canvas.draw_arrow(from.dom.box, to.dom.box, defaults.line_color, defaults.line_width);
-        // },
 
         /**
          * Load display_name of records.
@@ -344,22 +241,24 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
         on_data_loaded_2: function (records, group_bys) {
             var self = this;
             var data = [];
-            var groups = [];
             this.grouped_by = group_bys;
             _.each(records, function (record) {
                 if (record[self.date_start]) {
                     data.push(self.record_data_transform(record));
                 }
             });
-            groups = this.split_groups(records, group_bys);
 
             this.gantt.refresh(data);
             // TODO: Add group support to frappe-gantt
-            // this.gantt.refresh_groups(groups);
+            /*
+            var groups = this.split_groups(records, group_bys);
+            this.gantt.refresh_groups(groups);
+            */
         },
 
         /**
          * Get the groups.
+         * TODO: Add group support to frappe-gantt
          *
          * @private
          * @returns {Array}
@@ -398,7 +297,7 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
          * @returns {Object}
          */
         record_data_transform: function (record) {
-            // var self = this;
+            var self = this;
             var date_start = new moment();
             var date_stop = null;
 
@@ -417,43 +316,23 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
                 date_stop = this.date_stop ? time.auto_str_to_date(record[this.date_stop]) : null;
             }
 
-            // if (!date_stop && date_delay) {
-            //     date_stop = moment(date_start).add(date_delay, 'hours').toDate();
-            // }
+            if (!date_stop && date_delay) {
+                date_stop = moment(date_start).add(date_delay, 'hours').toDate();
+            }
 
-            // var group = record[self.last_group_bys[0]];
-            // if (group && group instanceof Array) {
-            //     group = _.first(group);
-            // } else {
-            //     group = -1;
-            // }
-            // _.each(self.colors, function (color) {
-            //     if (eval("'" + record[color.field] + "' " + color.opt + " '" + color.value + "'")) {
-            //         self.color = color.color;
-            //     }
-            // });
+            // TODO: Add group support to frappe-gantt
+            var group = record[self.last_group_bys[0]];
+            if (group && group instanceof Array) {
+                group = _.first(group);
+            } else {
+                group = -1;
+            }
 
             var content = _.isUndefined(record.__name) ? record.display_name : record.__name;
-            // if (this.arch.children.length) {
-            //     content = this.render_gantt_item(record);
-            // }
 
-            // var r = {
-            //     'start': date_start,
-            //     'content': content,
-            //     'id': record.id,
-            //     'group': group,
-            //     'record': record,
-            //     'style': 'background-color: ' + self.color + ';'
-            // };
-            // // Check if the event is instantaneous, if so, display it with a point on the gantt (no 'end')
-            // if (date_stop && !moment(date_start).isSame(date_stop)) {
-            //     r.end = date_stop;
-            // }
-            // self.color = null;
             var r = {
                 'record': record,
-                // 'record_id': record.id,
+                'group': group,
                 'start': date_start,
                 'end': date_stop,
                 'name': content,
@@ -482,19 +361,36 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
             );
         },
 
+        /**
+         * Render task html popup content.
+         *
+         * @param {Object} task Task
+         * @private
+         * @returns {String} Html
+         */
         custom_popup_html: function (task) {
             var self = this;
-            // console.log(typeof this);
-            // console.log(typeof self.render_fgantt_item);
-            // console.log(typeof self.on_click);
-            // console.log(typeof self.trigger_up);
-            return self.render_fgantt_item(task.record);
+            content = null;
+            if (self.arch.children.length) {
+                content = self.render_fgantt_item(task.record);
+            }
+            return content
         },
 
+        /**
+         * Trigger onClick.
+         *
+         * @private
+         */
         on_click: function (task) {
             console.log(task);
         },
 
+        /**
+         * Trigger onDateChange.
+         *
+         * @private
+         */
         on_date_change: function (task, start, end) {
             console.log(task, start, end);
             this.trigger_up('onDateChange', {
@@ -506,74 +402,22 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
             });
         },
 
+        /**
+         * Trigger onProgressChange.
+         *
+         * @private
+         */
         on_progress_change: function (task, progress) {
             console.log(task, progress);
         },
 
-        on_view_change: function (mode) {
-            console.log(mode);
-        },
-
-        // /**
-        //  * Handle a click on a group header.
-        //  *
-        //  * @private
-        //  */
-        // on_group_click: function (e) {
-        //     if (e.what === 'group-label' && e.group !== -1) {
-        //         this._trigger(e, function() {
-        //             // Do nothing
-        //         }, 'onGroupClick');
-        //     }
-        // },
-
-        // /**
-        //  * Trigger onUpdate.
-        //  *
-        //  * @private
-        //  */
-        // on_update: function (item, callback) {
-        //     this._trigger(item, callback, 'onUpdate');
-        // },
-
-        // /**
-        //  * Trigger onMove.
-        //  *
-        //  * @private
-        //  */
-        // on_move: function (item, callback) {
-        //     this._trigger(item, callback, 'onMove');
-        // },
-
-        // /**
-        //  * Trigger onRemove.
-        //  *
-        //  * @private
-        //  */
-        // on_remove: function (item, callback) {
-        //     this._trigger(item, callback, 'onRemove');
-        // },
-
-        // /**
-        //  * Trigger onAdd.
-        //  *
-        //  * @private
-        //  */
-        // on_add: function (item, callback) {
-        //     this._trigger(item, callback, 'onAdd');
-        // },
-
         /**
-         * trigger_up encapsulation adds by default the rights, and the renderer.
+         * Trigger onViewChange.
          *
          * @private
          */
-        _trigger: function (item, trigger) {
-            this.trigger_up(trigger, {
-                'item': item,
-                'rights': this.modelClass.data.rights,
-                'renderer': this,
-            });
+        on_view_change: function (mode) {
+            console.log(mode);
         },
 
     });

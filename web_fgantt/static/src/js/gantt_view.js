@@ -87,75 +87,50 @@ odoo.define('web_fgantt.GanttView', function (require) {
                 archFieldNames
             );
 
-            this.parse_colors();
-            for (var i=0; i<this.colors.length; i++) {
-                fieldNames.push(this.colors[i].field);
-            }
-
-            if (attrs.dependency_arrow) {
-                fieldNames.push(attrs.dependency_arrow);
-            }
-
             this.permissions = {};
             this.grouped_by = false;
             this.date_start = attrs.date_start;
             this.date_stop = attrs.date_stop;
             this.date_delay = attrs.date_delay;
-            this.dependency_arrow = attrs.dependency_arrow;
 
             this.no_period = this.date_start === this.date_stop;
-            this.zoomKey = attrs.zoomKey || '';
-            this.margin = attrs.margin || '{}';
             this.mode = attrs.mode || attrs.default_window || 'fit';
             this.min_height = attrs.min_height || 300;
 
-            this.current_window = {
-                start: new moment(),
-                end: new moment().add(24, 'hours')
-            };
             if (!isNullOrUndef(attrs.quick_create_instance)) {
                 self.quick_create_instance = 'instance.' + attrs.quick_create_instance;
             }
-            this.stack = true;
-            if (!isNullOrUndef(attrs.stack) && !_.str.toBoolElse(attrs.stack, "true")) {
-                this.stack = false;
-            }
+
             this.options = {
                 groupOrder: this.group_order,
-                orientation: 'both',
-                selectable: true,
-                multiselect: true,
-                showCurrentTime: true,
-                stack: this.stack,
-                margin: JSON.parse(this.margin),
-                zoomKey: this.zoomKey
             };
             if (isNullOrUndef(attrs.event_open_popup) || !_.str.toBoolElse(attrs.event_open_popup, true)) {
                 this.open_popup_action = false;
             } else {
                 this.open_popup_action = attrs.event_open_popup;
             }
+
             this.rendererParams.mode = this.mode;
             this.rendererParams.model = this.modelName;
             this.rendererParams.options = this.options;
             this.rendererParams.permissions = this.permissions;
-            this.rendererParams.current_window = this.current_window;
             this.rendererParams.gantt = this.gantt;
             this.rendererParams.date_start = this.date_start;
             this.rendererParams.date_stop = this.date_stop;
             this.rendererParams.date_delay = this.date_delay;
-            this.rendererParams.colors = this.colors;
             this.rendererParams.fieldNames = fieldNames;
             this.rendererParams.view = this;
             this.rendererParams.min_height = this.min_height;
-            this.rendererParams.dependency_arrow = this.dependency_arrow;
+
             this.loadParams.modelName = this.modelName;
             this.loadParams.fieldNames = fieldNames;
+
             this.controllerParams.open_popup_action = this.open_popup_action;
             this.controllerParams.date_start = this.date_start;
             this.controllerParams.date_stop = this.date_stop;
             this.controllerParams.date_delay = this.date_delay;
             this.controllerParams.actionContext = this.action.context;
+
             return this;
         },
 
@@ -170,31 +145,7 @@ odoo.define('web_fgantt.GanttView', function (require) {
             if (grp2.id === -1) {
                 return +1;
             }
-
             return grp1.content.localeCompare(grp2.content);
-
-        },
-
-        /**
-         * Parse the colors attribute.
-         *
-         * @private
-         */
-        parse_colors: function () {
-            if (this.arch.attrs.colors) {
-                this.colors = _(this.arch.attrs.colors.split(';')).chain().compact().map(function (color_pair) {
-                    var pair = color_pair.split(':'), color = pair[0], expr = pair[1];
-                    var temp = py.parse(py.tokenize(expr));
-                    return {
-                        'color': color,
-                        'field': temp.expressions[0].value,
-                        'opt': temp.operators[0],
-                        'value': temp.expressions[1].value
-                    };
-                }).value();
-            } else {
-                this.colors = [];
-            }
         },
 
     });

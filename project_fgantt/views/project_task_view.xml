@@ -13,8 +13,7 @@
             <fgantt date_start="date_start"
                       date_stop="date_end"
                       default_group_by="project_id"
-                      event_open_popup="true"
-                      colors="#ec7063: user_id == false; #2ecb71: kanban_state == 'done';">
+                      event_open_popup="true">
                 <field name="user_id"/>
                 <field name="planned_hours"/>
                 <templates>
