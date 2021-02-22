@@ -188,6 +188,7 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
 
             // F-Gantt needs task data at creation so we create a fake task
             // that will be replaced with real data later
+            var today = new Date();
             var dummy_tasks = [
                 {
                     name: 'Loading Gantt Data',
