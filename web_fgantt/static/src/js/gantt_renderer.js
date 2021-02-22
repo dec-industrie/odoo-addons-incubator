@@ -37,6 +37,7 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
             this.date_start = params.date_start;
             this.date_stop = params.date_stop;
             this.date_delay = params.date_delay;
+            this.progress = params.progress;
             this.fieldNames = params.fieldNames;
             this.view = params.view;
             this.modelClass = this.view.model;
@@ -169,7 +170,7 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
             */
             $.extend(this.options, {
                 custom_popup_html: function(task) {
-                    self.custom_popup_html(task)
+                    return self.custom_popup_html(task)
                 },
                 on_click: self.on_click,
                 on_date_change: self.on_date_change,
@@ -197,6 +198,7 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
                     progress: 100,
                 },
             ]
+            // TODO: Add support for empty init to frappe-gantt
             this.gantt = new Gantt(self.$gantt.empty().get(0), dummy_tasks, this.options);
 
             // TODO: Add group support to frappe-gantt
@@ -302,6 +304,7 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
             var date_start = new moment();
             var date_stop = null;
 
+            var progress = record[this.progress] || 0;
             var date_delay = record[this.date_delay] || false,
                 all_day = this.all_day ? record[this.all_day] : false;
 
@@ -337,7 +340,7 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
                 'start': date_start,
                 'end': date_stop,
                 'name': content,
-                'progress': 0,
+                'progress': progress,
             };
             return r;
         },

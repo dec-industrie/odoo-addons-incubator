@@ -92,6 +92,7 @@ odoo.define('web_fgantt.GanttView', function (require) {
             this.date_start = attrs.date_start;
             this.date_stop = attrs.date_stop;
             this.date_delay = attrs.date_delay;
+            this.progress = attrs.progress;
 
             this.no_period = this.date_start === this.date_stop;
             this.mode = attrs.mode || attrs.default_window || 'fit';
@@ -118,6 +119,7 @@ odoo.define('web_fgantt.GanttView', function (require) {
             this.rendererParams.date_start = this.date_start;
             this.rendererParams.date_stop = this.date_stop;
             this.rendererParams.date_delay = this.date_delay;
+            this.rendererParams.progress = this.progress;
             this.rendererParams.fieldNames = fieldNames;
             this.rendererParams.view = this;
             this.rendererParams.min_height = this.min_height;

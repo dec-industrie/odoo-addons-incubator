@@ -14,6 +14,7 @@
     "installable": True,
     "depends": [
         "project",
+        "hr_timesheet",
         "web_fgantt",
     ],
     "data":

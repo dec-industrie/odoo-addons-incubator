@@ -11,12 +11,15 @@ odoo.define('web_fgantt.GanttController', function (require) {
 
     var GanttController = AbstractController.extend({
         custom_events: _.extend({}, AbstractController.prototype.custom_events, {
-            onGroupClick: '_onGroupClick',
-            onUpdate: '_onUpdate',
-            onRemove: '_onRemove',
-            onMove: '_onMove',
-            onAdd: '_onAdd',
             onDateChange: '_onDateChange',
+            // TODO: Add "open/edit action"
+            onOpenEdit: '_onOpenEdit',
+            // TODO: Add group support to frappe-gantt
+            onGroupClick: '_onGroupClick',
+            // TODO: Add "remove action"
+            onRemove: '_onRemove',
+            // TODO: Add "add action"
+            onAdd: '_onAdd',
         }),
 
         /**
@@ -78,94 +81,18 @@ odoo.define('web_fgantt.GanttController', function (require) {
         },
 
         /**
-         * Gets triggered when a group in the gantt is clicked (by the GanttRenderer).
-         *
-         * @private
-         * @returns {jQuery.Deferred}
-         */
-        _onGroupClick: function (event) {
-            var groupField = this.renderer.last_group_bys[0];
-            return this.do_action({
-                type: 'ir.actions.act_window',
-                res_model: this.renderer.view.fields[groupField].relation,
-                res_id: event.data.task.group,
-                target: 'new',
-                views: [[false, 'form']]
-            });
-        },
-
-        /**
-         * Opens a form view of a clicked gantt item (triggered by the GanttRenderer).
+         * Gets triggered when a gantt task is moved or resized
+         * (triggered by the GanttRenderer).
          *
          * @private
          */
-        _onUpdate: function (event) {
-            var self = this;
-            this.renderer = event.data.renderer;
-            var rights = event.data.rights;
-            var task = event.data.task;
-            var id = task.record.id;
-            var title = task.record.__name;
-            if (this.open_popup_action) {
-                new dialogs.FormViewDialog(this, {
-                    res_model: this.model.modelName,
-                    res_id: parseInt(id, 10).toString() === id ? parseInt(id, 10) : id,
-                    context: this.getSession().user_context,
-                    title: title,
-                    view_id: Number(this.open_popup_action),
-                    on_saved: function () {
-                        self.write_completed();
-                    },
-                }).open();
-            } else {
-                var mode = 'readonly';
-                if (rights.write) {
-                    mode = 'edit';
-                }
-                this.trigger_up('switch_view', {
-                    view_type: 'form',
-                    res_id: parseInt(id, 10).toString() === id ? parseInt(id, 10) : id,
-                    mode: mode,
-                    model: this.model.modelName,
-                });
-            }
-        },
-
         _onDateChange: function (event) {
             var view = this.renderer.view;
             var fields = view.fields;
             var task = event.data.task;
             var task_start = event.data.start;
             var task_end = event.data.end;
-            var data = {};
-            // In case of a move event, the date_delay stay the same, only date_start and stop must be updated
-            data[this.date_start] = time.auto_date_to_str(task_start, fields[this.date_start].type);
-            data[this.date_stop] = time.auto_date_to_str(task_end, fields[this.date_stop].type);
 
-            var move_item = {
-                id: task.record.id,
-                data: data,
-                event: event
-            }
-            this.moveQueue.push(move_item);
-            this.debouncedInternalMove();
-        },
-
-        /**
-         * Gets triggered when a gantt task is moved (triggered by the GanttRenderer).
-         *
-         * @private
-         */
-        _onMove: function (event) {
-            var task = event.data.task;
-            var view = this.renderer.view;
-            var fields = view.fields;
-            var task_start = task.start;
-            var task_end = task.end;
-            var group = false;
-            if (task.group !== -1) {
-                group = task.group;
-            }
             var data = {};
             // In case of a move event, the date_delay stay the same, only date_start and stop must be updated
             data[this.date_start] = time.auto_date_to_str(task_start, fields[this.date_start].type);
@@ -180,6 +107,12 @@ odoo.define('web_fgantt.GanttController', function (require) {
             if (this.date_delay && task_end) {
                 var diff_seconds = Math.round((task_end.getTime() - task_start.getTime()) / 1000);
                 data[this.date_delay] = diff_seconds / 3600;
+            }
+
+            // TODO: Add group support to frappe-gantt
+            var group = false;
+            if (task.group !== -1) {
+                group = task.group;
             }
             if (this.renderer.last_group_bys && this.renderer.last_group_bys instanceof Array) {
                 data[this.renderer.last_group_bys[0]] = group;
@@ -226,8 +159,66 @@ odoo.define('web_fgantt.GanttController', function (require) {
         },
 
         /**
+         * Gets triggered when a group in the gantt is clicked (by the GanttRenderer).
+         * TODO: Add group support to frappe-gantt
+         *
+         * @private
+         * @returns {jQuery.Deferred}
+         */
+        _onGroupClick: function (event) {
+            var groupField = this.renderer.last_group_bys[0];
+            return this.do_action({
+                type: 'ir.actions.act_window',
+                res_model: this.renderer.view.fields[groupField].relation,
+                res_id: event.data.task.group,
+                target: 'new',
+                views: [[false, 'form']]
+            });
+        },
+
+        /**
+         * Opens a form view of a clicked gantt item 
+         * (triggered by the GanttRenderer).
+         * TODO: Add "open/edit action"
+         * 
+         * @private
+         */
+        _onOpenEdit: function (event) {
+            var self = this;
+            this.renderer = event.data.renderer;
+            var rights = event.data.rights;
+            var task = event.data.task;
+            var id = task.record.id;
+            var title = task.record.__name;
+            if (this.open_popup_action) {
+                new dialogs.FormViewDialog(this, {
+                    res_model: this.model.modelName,
+                    res_id: parseInt(id, 10).toString() === id ? parseInt(id, 10) : id,
+                    context: this.getSession().user_context,
+                    title: title,
+                    view_id: Number(this.open_popup_action),
+                    on_saved: function () {
+                        self.write_completed();
+                    },
+                }).open();
+            } else {
+                var mode = 'readonly';
+                if (rights.write) {
+                    mode = 'edit';
+                }
+                this.trigger_up('switch_view', {
+                    view_type: 'form',
+                    res_id: parseInt(id, 10).toString() === id ? parseInt(id, 10) : id,
+                    mode: mode,
+                    model: this.model.modelName,
+                });
+            }
+        },
+
+        /**
          * Triggered when a gantt item gets removed from the view.
          * Requires user confirmation before it gets actually deleted.
+         * TODO: Add "remove action"
          *
          * @private
          * @returns {jQuery.Deferred}
@@ -273,6 +264,7 @@ odoo.define('web_fgantt.GanttController', function (require) {
 
         /**
          * Triggered when a gantt task gets added and opens a form view.
+         * TODO: Add "add action"
          *
          * @private
          */
@@ -349,7 +341,6 @@ odoo.define('web_fgantt.GanttController', function (require) {
                 context: this.context,
                 groupBy: this.renderer.last_group_bys,
             };
-
             this.update(params, options);
         },
     });
