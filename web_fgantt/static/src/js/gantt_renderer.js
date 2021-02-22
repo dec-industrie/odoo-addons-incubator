@@ -199,21 +199,27 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
         init_gantt: function () {
             var self = this;
             this._computeMode();
-            // this.options.editable = {
-            //     // add new items by double tapping
-            //     add: this.modelClass.data.rights.create,
-            //     // drag items horizontally
-            //     updateTime: this.modelClass.data.rights.write,
-            //     // drag items from one group to another
-            //     updateGroup: this.modelClass.data.rights.write,
-            //     // delete an item by tapping the delete button top right
-            //     remove: this.modelClass.data.rights.unlink,
-            // };
+            // TODO: Add editable support to frappe-gantt
+            /*
+            this.options.editable = {
+                // add new items by double tapping
+                add: this.modelClass.data.rights.create,
+                // drag items horizontally
+                updateTime: this.modelClass.data.rights.write,
+                // drag items from one group to another
+                updateGroup: this.modelClass.data.rights.write,
+                // delete an item by tapping the delete button top right
+                remove: this.modelClass.data.rights.unlink,
+            };
+            */
             $.extend(this.options, {
                 // onAdd: self.on_add,
                 // onMove: self.on_move,
                 // onUpdate: self.on_update,
                 // onRemove: self.on_remove
+                custom_popup_html: function(task) {
+                    self.custom_popup_html(task)
+                },
                 on_click: self.on_click,
                 on_date_change: self.on_date_change,
                 on_progress_change: self.on_progress_change,
@@ -229,38 +235,22 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
                 this.qweb.add_template(tmpl);
             }
 
-            var tasks = [
+            // F-Gantt needs task data at creation so we create a fake task
+            // that will be replaced with real data later
+            var dummy_tasks = [
                 {
-                    id: 'Task 1',
-                    name: 'Redesign website',
-                    start: '2016-12-28',
-                    end: '2016-12-31',
-                    progress: 20,
+                    name: 'Loading Gantt Data',
+                    start: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
+                    end: new Date(today.getFullYear(), today.getMonth(), today.getDate()+7),
+                    progress: 100,
                 },
             ]
+            this.gantt = new Gantt(self.$gantt.empty().get(0), dummy_tasks, this.options);
 
-            this.gantt = new Gantt(self.$gantt.empty().get(0), tasks, this.options);
-
-            // this.gantt = new vis.Timeline(self.$gantt.empty().get(0));
-            // this.gantt.setOptions(this.options);
-            // if (self.mode && self['on_scale_' + self.mode + '_clicked']) {
-            //     self['on_scale_' + self.mode + '_clicked']();
-            // }
-            // this.gantt.on('click', self.on_group_click);
             var group_bys = this.arch.attrs.default_group_by.split(',');
             this.last_group_bys = group_bys;
             this.last_domains = this.modelClass.data.domain;
-            this.on_data_loaded(this.modelClass.data.data, group_bys);
-            // this.$centerContainer = $(this.gantt.dom.centerContainer);
-            // this.canvas = new GanttCanvas(this);
-            // this.canvas.appendTo(this.$centerContainer);
-            // this.gantt.on('changed', function() {
-            //     self.draw_canvas();
-            //     self.canvas.$el.attr(
-            //         'style',
-            //         self.$el.find('.vis-content').attr('style') + self.$el.find('.vis-itemset').attr('style')
-            //     );
-            // });
+            this.on_data_loaded(this.modelClass.data.records, group_bys);
         },
 
         // /**
@@ -284,10 +274,10 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
         //     var self = this;
         //     var items = this.gantt.itemSet.items;
         //     _.each(items, function(item) {
-        //         if (!item.data.evt) {
+        //         if (!item.data.record) {
         //             return;
         //         }
-        //         _.each(item.data.evt[self.dependency_arrow], function(id) {
+        //         _.each(item.data.record[self.dependency_arrow], function(id) {
         //             if (id in items) {
         //                 self.draw_dependency(item, items[id]);
         //             }
@@ -324,9 +314,9 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
          * @private
          * @returns {jQuery.Deferred}
          */
-        on_data_loaded: function (events, group_bys, adjust_window) {
+        on_data_loaded: function (records, group_bys) {
             var self = this;
-            var ids = _.pluck(events, "id");
+            var ids = _.pluck(records, "id");
             return this._rpc({
                 model: this.modelName,
                 method: 'name_get',
@@ -335,43 +325,37 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
                 ],
                 context: this.getSession().user_context,
             }).then(function(names) {
-                var nevents = _.map(events, function (event) {
+                var nrecords = _.map(records, function (record) {
                     return _.extend({
                         __name: _.detect(names, function (name) {
-                            return name[0] === event.id;
+                            return name[0] === record.id;
                         })[1]
-                    }, event);
+                    }, record);
                 });
-                return self.on_data_loaded_2(nevents, group_bys, adjust_window);
+                return self.on_data_loaded_2(nrecords, group_bys);
             });
         },
 
         /**
-         * Set groups and events.
+         * Set groups and records.
          *
          * @private
          */
-        on_data_loaded_2: function (events, group_bys, adjust_window) {
+        on_data_loaded_2: function (records, group_bys) {
             var self = this;
             var data = [];
             var groups = [];
             this.grouped_by = group_bys;
-            _.each(events, function (event) {
-                if (event[self.date_start]) {
-                    data.push(self.event_data_transform(event));
+            _.each(records, function (record) {
+                if (record[self.date_start]) {
+                    data.push(self.record_data_transform(record));
                 }
             });
-            groups = this.split_groups(events, group_bys);
+            groups = this.split_groups(records, group_bys);
 
             this.gantt.refresh(data);
-            // Was for timeline
-            // this.gantt.setGroups(groups);
-            // this.gantt.setItems(data);
-            // var mode = !this.mode || this.mode === 'fit';
-            // var adjust = _.isUndefined(adjust_window) || adjust_window;
-            // if (mode && adjust) {
-            //     this.gantt.fit();
-            // }
+            // TODO: Add group support to frappe-gantt
+            // this.gantt.refresh_groups(groups);
         },
 
         /**
@@ -380,14 +364,14 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
          * @private
          * @returns {Array}
          */
-        split_groups: function (events, group_bys) {
+        split_groups: function (records, group_bys) {
             if (group_bys.length === 0) {
-                return events;
+                return records;
             }
             var groups = [];
             groups.push({id: -1, content: _t('-')});
-            _.each(events, function (event) {
-                var group_name = event[_.first(group_bys)];
+            _.each(records, function (record) {
+                var group_name = record[_.first(group_bys)];
                 if (group_name) {
                     if (group_name instanceof Array) {
                         var group = _.find(groups, function (existing_group) {
@@ -408,58 +392,58 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
         },
 
         /**
-         * Transform Odoo event object to gantt event object.
+         * Transform Odoo record object to gantt task object.
          *
          * @private
          * @returns {Object}
          */
-        event_data_transform: function (evt) {
+        record_data_transform: function (record) {
             // var self = this;
             var date_start = new moment();
             var date_stop = null;
 
-            var date_delay = evt[this.date_delay] || false,
-                all_day = this.all_day ? evt[this.all_day] : false;
+            var date_delay = record[this.date_delay] || false,
+                all_day = this.all_day ? record[this.all_day] : false;
 
             if (all_day) {
-                date_start = time.auto_str_to_date(evt[this.date_start].split(' ')[0], 'start');
+                date_start = time.auto_str_to_date(record[this.date_start].split(' ')[0], 'start');
                 if (this.no_period) {
                     date_stop = date_start;
                 } else {
-                    date_stop = this.date_stop ? time.auto_str_to_date(evt[this.date_stop].split(' ')[0], 'stop') : null;
+                    date_stop = this.date_stop ? time.auto_str_to_date(record[this.date_stop].split(' ')[0], 'stop') : null;
                 }
             } else {
-                date_start = time.auto_str_to_date(evt[this.date_start]);
-                date_stop = this.date_stop ? time.auto_str_to_date(evt[this.date_stop]) : null;
+                date_start = time.auto_str_to_date(record[this.date_start]);
+                date_stop = this.date_stop ? time.auto_str_to_date(record[this.date_stop]) : null;
             }
 
             // if (!date_stop && date_delay) {
             //     date_stop = moment(date_start).add(date_delay, 'hours').toDate();
             // }
 
-            // var group = evt[self.last_group_bys[0]];
+            // var group = record[self.last_group_bys[0]];
             // if (group && group instanceof Array) {
             //     group = _.first(group);
             // } else {
             //     group = -1;
             // }
             // _.each(self.colors, function (color) {
-            //     if (eval("'" + evt[color.field] + "' " + color.opt + " '" + color.value + "'")) {
+            //     if (eval("'" + record[color.field] + "' " + color.opt + " '" + color.value + "'")) {
             //         self.color = color.color;
             //     }
             // });
 
-            var content = _.isUndefined(evt.__name) ? evt.display_name : evt.__name;
-            if (this.arch.children.length) {
-                content = this.render_gantt_item(evt);
-            }
+            var content = _.isUndefined(record.__name) ? record.display_name : record.__name;
+            // if (this.arch.children.length) {
+            //     content = this.render_gantt_item(record);
+            // }
 
             // var r = {
             //     'start': date_start,
             //     'content': content,
-            //     'id': evt.id,
+            //     'id': record.id,
             //     'group': group,
-            //     'evt': evt,
+            //     'record': record,
             //     'style': 'background-color: ' + self.color + ';'
             // };
             // // Check if the event is instantaneous, if so, display it with a point on the gantt (no 'end')
@@ -468,7 +452,8 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
             // }
             // self.color = null;
             var r = {
-                'odoo_id': evt.id,
+                'record': record,
+                // 'record_id': record.id,
                 'start': date_start,
                 'end': date_stop,
                 'name': content,
@@ -478,23 +463,32 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
         },
 
         /**
-         * Render gantt item template.
+         * Render f-gantt item template.
          *
-         * @param {Object} evt Record
+         * @param {Object} record Record
          * @private
          * @returns {String} Rendered template
          */
-        render_gantt_item: function (evt) {
-            if(this.qweb.has_template('gantt-item')) {
-                return this.qweb.render('gantt-item', {
-                    'record': evt,
+        render_fgantt_item: function (record) {
+            if(this.qweb.has_template('fgantt-item')) {
+                return this.qweb.render('fgantt-item', {
+                    'record': record,
                     'field_utils': field_utils
                 });
             }
 
             console.error(
-                _t('Template "gantt-item" not present in gantt view definition.')
+                _t('Template "fgantt-item" not present in gantt view definition.')
             );
+        },
+
+        custom_popup_html: function (task) {
+            var self = this;
+            // console.log(typeof this);
+            // console.log(typeof self.render_fgantt_item);
+            // console.log(typeof self.on_click);
+            // console.log(typeof self.trigger_up);
+            return self.render_fgantt_item(task.record);
         },
 
         on_click: function (task) {
@@ -503,6 +497,13 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
 
         on_date_change: function (task, start, end) {
             console.log(task, start, end);
+            this.trigger_up('onDateChange', {
+                'task': task,
+                'start': start,
+                'end': end,
+                'rights': this.modelClass.data.rights,
+                'renderer': this,
+            });
         },
 
         on_progress_change: function (task, progress) {
@@ -567,10 +568,9 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
          *
          * @private
          */
-        _trigger: function (item, callback, trigger) {
+        _trigger: function (item, trigger) {
             this.trigger_up(trigger, {
                 'item': item,
-                'callback': callback,
                 'rights': this.modelClass.data.rights,
                 'renderer': this,
             });

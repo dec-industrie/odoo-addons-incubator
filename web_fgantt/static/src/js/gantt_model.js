@@ -56,8 +56,8 @@ odoo.define('web_fgantt.GanttModel', function (require) {
                 fields: self.fieldNames,
                 domain: self.data.domain,
             })
-            .then(function (events) {
-                self.data.data = events;
+            .then(function (records) {
+                self.data.records = records;
                 self.data.rights = {
                     'unlink': self.unlink_right,
                     'create': self.create_right,

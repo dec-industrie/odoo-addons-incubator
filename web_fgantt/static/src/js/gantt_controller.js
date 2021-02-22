@@ -16,6 +16,7 @@ odoo.define('web_fgantt.GanttController', function (require) {
             onRemove: '_onRemove',
             onMove: '_onMove',
             onAdd: '_onAdd',
+            onDateChange: '_onDateChange',
         }),
 
         /**
@@ -41,9 +42,6 @@ odoo.define('web_fgantt.GanttController', function (require) {
             if (_.isEmpty(params)){
                 return res;
             }
-            var defaults = _.defaults({}, options, {
-                adjust_window: true
-            });
             var self = this;
             var domains = params.domain;
             var contexts = params.context;
@@ -73,8 +71,8 @@ odoo.define('web_fgantt.GanttController', function (require) {
                         domain: domains,
                     },
                     context: self.getSession().user_context,
-                }).then(function (data) {
-                    return self.renderer.on_data_loaded(data, n_group_bys, defaults.adjust_window);
+                }).then(function (records) {
+                    return self.renderer.on_data_loaded(records, n_group_bys);
                 })
             );
         },
@@ -106,8 +104,8 @@ odoo.define('web_fgantt.GanttController', function (require) {
             this.renderer = event.data.renderer;
             var rights = event.data.rights;
             var item = event.data.item;
-            var id = item.evt.id;
-            var title = item.evt.__name;
+            var id = item.record.id;
+            var title = item.record.__name;
             if (this.open_popup_action) {
                 new dialogs.FormViewDialog(this, {
                     res_model: this.model.modelName,
@@ -131,6 +129,26 @@ odoo.define('web_fgantt.GanttController', function (require) {
                     model: this.model.modelName,
                 });
             }
+        },
+
+        _onDateChange: function (event) {
+            var view = this.renderer.view;
+            var fields = view.fields;
+            var task = event.data.task;
+            var event_start = event.data.start;
+            var event_end = event.data.end;
+            var data = {};
+            // In case of a move event, the date_delay stay the same, only date_start and stop must be updated
+            data[this.date_start] = time.auto_date_to_str(event_start, fields[this.date_start].type);
+            data[this.date_stop] = time.auto_date_to_str(event_end, fields[this.date_stop].type);
+
+            this.moveQueue.push({
+                id: task.record.id,
+                data: data,
+                event: event
+            });
+
+            this.debouncedInternalMove();
         },
 
         /**
@@ -192,12 +210,12 @@ odoo.define('web_fgantt.GanttController', function (require) {
                     model: self.model.modelName,
                     method: 'write',
                     args: [
-                        [item.event.data.item.id],
+                        [item.id],
                         item.data,
                     ],
                     context: self.getSession().user_context,
                 }).then(function() {
-                    item.event.data.callback(item.event.data.item);
+                    // item.event.data.callback(item.event.data.item);
                 }));
             });
             return $.when.apply($, defers).done(function() {
@@ -227,13 +245,13 @@ odoo.define('web_fgantt.GanttController', function (require) {
                     context: self.getSession().user_context,
                 }).then(function () {
                     var unlink_index = false;
-                    for (var i = 0; i < self.model.data.data.length; i++) {
-                        if (self.model.data.data[i].id === event.data.item.id) {
+                    for (var i = 0; i < self.model.data.records.length; i++) {
+                        if (self.model.data.records[i].id === event.data.item.id) {
                             unlink_index = i;
                         }
                     }
                     if (!isNaN(unlink_index)) {
-                        self.model.data.data.splice(unlink_index, 1);
+                        self.model.data.records.splice(unlink_index, 1);
                     }
 
                     event.data.callback(event.data.item);
