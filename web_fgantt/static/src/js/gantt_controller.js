@@ -88,7 +88,7 @@ odoo.define('web_fgantt.GanttController', function (require) {
             return this.do_action({
                 type: 'ir.actions.act_window',
                 res_model: this.renderer.view.fields[groupField].relation,
-                res_id: event.data.item.group,
+                res_id: event.data.task.group,
                 target: 'new',
                 views: [[false, 'form']]
             });
@@ -103,9 +103,9 @@ odoo.define('web_fgantt.GanttController', function (require) {
             var self = this;
             this.renderer = event.data.renderer;
             var rights = event.data.rights;
-            var item = event.data.item;
-            var id = item.record.id;
-            var title = item.record.__name;
+            var task = event.data.task;
+            var id = task.record.id;
+            var title = task.record.__name;
             if (this.open_popup_action) {
                 new dialogs.FormViewDialog(this, {
                     res_model: this.model.modelName,
@@ -135,62 +135,62 @@ odoo.define('web_fgantt.GanttController', function (require) {
             var view = this.renderer.view;
             var fields = view.fields;
             var task = event.data.task;
-            var event_start = event.data.start;
-            var event_end = event.data.end;
+            var task_start = event.data.start;
+            var task_end = event.data.end;
             var data = {};
             // In case of a move event, the date_delay stay the same, only date_start and stop must be updated
-            data[this.date_start] = time.auto_date_to_str(event_start, fields[this.date_start].type);
-            data[this.date_stop] = time.auto_date_to_str(event_end, fields[this.date_stop].type);
+            data[this.date_start] = time.auto_date_to_str(task_start, fields[this.date_start].type);
+            data[this.date_stop] = time.auto_date_to_str(task_end, fields[this.date_stop].type);
 
-            this.moveQueue.push({
+            var move_item = {
                 id: task.record.id,
                 data: data,
                 event: event
-            });
-
+            }
+            this.moveQueue.push(move_item);
             this.debouncedInternalMove();
         },
 
         /**
-         * Gets triggered when a gantt item is moved (triggered by the GanttRenderer).
+         * Gets triggered when a gantt task is moved (triggered by the GanttRenderer).
          *
          * @private
          */
         _onMove: function (event) {
-            var item = event.data.item;
+            var task = event.data.task;
             var view = this.renderer.view;
             var fields = view.fields;
-            var event_start = item.start;
-            var event_end = item.end;
+            var task_start = task.start;
+            var task_end = task.end;
             var group = false;
-            if (item.group !== -1) {
-                group = item.group;
+            if (task.group !== -1) {
+                group = task.group;
             }
             var data = {};
             // In case of a move event, the date_delay stay the same, only date_start and stop must be updated
-            data[this.date_start] = time.auto_date_to_str(event_start, fields[this.date_start].type);
+            data[this.date_start] = time.auto_date_to_str(task_start, fields[this.date_start].type);
             if (this.date_stop) {
-                // In case of instantaneous event, item.end is not defined
-                if (event_end) {
-                    data[this.date_stop] = time.auto_date_to_str(event_end, fields[this.date_stop].type);
+                // In case of instantaneous event, task.end is not defined
+                if (task_end) {
+                    data[this.date_stop] = time.auto_date_to_str(task_end, fields[this.date_stop].type);
                 } else {
                     data[this.date_stop] = data[this.date_start];
                 }
             }
-            if (this.date_delay && event_end) {
-                var diff_seconds = Math.round((event_end.getTime() - event_start.getTime()) / 1000);
+            if (this.date_delay && task_end) {
+                var diff_seconds = Math.round((task_end.getTime() - task_start.getTime()) / 1000);
                 data[this.date_delay] = diff_seconds / 3600;
             }
             if (this.renderer.last_group_bys && this.renderer.last_group_bys instanceof Array) {
                 data[this.renderer.last_group_bys[0]] = group;
             }
 
-            this.moveQueue.push({
-                id: event.data.item.id,
+            var move_item = {
+                id: task.record.id,
                 data: data,
                 event: event
-            });
-
+            }
+            this.moveQueue.push(move_item);
             this.debouncedInternalMove();
         },
 
@@ -205,17 +205,17 @@ odoo.define('web_fgantt.GanttController', function (require) {
             var queue = this.moveQueue.slice();
             this.moveQueue = [];
             var defers = [];
-            _.each(queue, function(item) {
+            _.each(queue, function(move_item) {
                 defers.push(self._rpc({
                     model: self.model.modelName,
                     method: 'write',
                     args: [
-                        [item.id],
-                        item.data,
+                        [move_item.id],
+                        move_item.data,
                     ],
                     context: self.getSession().user_context,
                 }).then(function() {
-                    // item.event.data.callback(item.event.data.item);
+                    move_item.event.data.callback(move_item.event.data.task);
                 }));
             });
             return $.when.apply($, defers).done(function() {
@@ -240,13 +240,13 @@ odoo.define('web_fgantt.GanttController', function (require) {
                     model: self.model.modelName,
                     method: 'unlink',
                     args: [
-                        [event.data.item.id],
+                        [event.data.task.record.id],
                     ],
                     context: self.getSession().user_context,
                 }).then(function () {
                     var unlink_index = false;
                     for (var i = 0; i < self.model.data.records.length; i++) {
-                        if (self.model.data.records[i].id === event.data.item.id) {
+                        if (self.model.data.records[i].id === event.data.task.record.id) {
                             unlink_index = i;
                         }
                     }
@@ -254,7 +254,7 @@ odoo.define('web_fgantt.GanttController', function (require) {
                         self.model.data.records.splice(unlink_index, 1);
                     }
 
-                    event.data.callback(event.data.item);
+                    event.data.callback(event.data.task);
                 });
             }
 
@@ -272,31 +272,31 @@ odoo.define('web_fgantt.GanttController', function (require) {
         },
 
         /**
-         * Triggered when a gantt item gets added and opens a form view.
+         * Triggered when a gantt task gets added and opens a form view.
          *
          * @private
          */
         _onAdd: function (event) {
             var self = this;
-            var item = event.data.item;
+            var task = event.data.task;
             // Initialize default values for creation
             var default_context = {};
-            default_context['default_'.concat(this.date_start)] = item.start;
+            default_context['default_'.concat(this.date_start)] = task.start;
             if (this.date_delay) {
                 default_context['default_'.concat(this.date_delay)] = 1;
             }
             if (this.date_start) {
-                default_context['default_'.concat(this.date_start)] = moment(item.start).add(1, 'hours').format(
+                default_context['default_'.concat(this.date_start)] = moment(task.start).add(1, 'hours').format(
                     'YYYY-MM-DD HH:mm:ss'
                 );
             }
-            if (this.date_stop && item.end) {
-                default_context['default_'.concat(this.date_stop)] = moment(item.end).add(1, 'hours').format(
+            if (this.date_stop && task.end) {
+                default_context['default_'.concat(this.date_stop)] = moment(task.end).add(1, 'hours').format(
                     'YYYY-MM-DD HH:mm:ss'
                 );
             }
-            if (item.group > 0) {
-                default_context['default_'.concat(this.renderer.last_group_bys[0])] = item.group;
+            if (task.group > 0) {
+                default_context['default_'.concat(this.renderer.last_group_bys[0])] = task.group;
             }
             // Show popup
             new dialogs.FormViewDialog(this, {
@@ -332,10 +332,10 @@ odoo.define('web_fgantt.GanttController', function (require) {
                 context: this.context,
             })
             .then(function (records) {
-                var new_event = self.renderer.event_data_transform(records[0]);
-                var items = self.renderer.gantt.itemsData;
-                items.add(new_event);
-                self.renderer.gantt.setItems(items);
+                var new_task = self.renderer.record_data_transform(records[0]);
+                var tasks = self.renderer.gantt.tasks;
+                tasks.add(new_task);
+                self.renderer.gantt.refresh(tasks);
                 self.reload();
             });
         },

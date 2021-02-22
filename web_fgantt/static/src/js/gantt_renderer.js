@@ -240,15 +240,15 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
          */
         on_data_loaded_2: function (records, group_bys) {
             var self = this;
-            var data = [];
+            var tasks = [];
             this.grouped_by = group_bys;
             _.each(records, function (record) {
                 if (record[self.date_start]) {
-                    data.push(self.record_data_transform(record));
+                    tasks.push(self.record_data_transform(record));
                 }
             });
 
-            this.gantt.refresh(data);
+            this.gantt.refresh(tasks);
             // TODO: Add group support to frappe-gantt
             /*
             var groups = this.split_groups(records, group_bys);
@@ -399,6 +399,9 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
                 'end': end,
                 'rights': this.modelClass.data.rights,
                 'renderer': this,
+                callback: function (task) {
+                    console.log('Fake callback', task);
+                },
             });
         },
 
