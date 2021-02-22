@@ -251,7 +251,12 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
                 }
             });
 
+            // Save current scroll position
+            var scrollLeft = this.gantt.$svg.parentElement.scrollLeft;
             this.gantt.refresh(tasks);
+            // Restore scroll position to avoid view jump
+            this.gantt.$svg.parentElement.scrollLeft = scrollLeft;
+
             // TODO: Add group support to frappe-gantt
             /*
             var groups = this.split_groups(records, group_bys);
@@ -387,7 +392,15 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
          * @private
          */
         on_click: function (task) {
-            console.log(task);
+            var self = this;
+            this.trigger_up('onOpenEdit', {
+                'task': task,
+                'rights': this.modelClass.data.rights,
+                'renderer': this,
+                callback: function () {
+                    self.gantt.hide_popup()
+                },
+            });
         },
 
         /**
@@ -396,7 +409,6 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
          * @private
          */
         on_date_change: function (task, start, end) {
-            console.log(task, start, end);
             this.trigger_up('onDateChange', {
                 'task': task,
                 'start': start,
@@ -404,7 +416,7 @@ odoo.define('web_fgantt.GanttRenderer', function (require) {
                 'rights': this.modelClass.data.rights,
                 'renderer': this,
                 callback: function (task) {
-                    console.log('Fake callback', task);
+                    console.log('on_date_change callback', task);
                 },
             });
         },

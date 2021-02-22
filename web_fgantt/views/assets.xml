@@ -8,11 +8,11 @@
 
             <script type="text/javascript" src="/web_fgantt/static/lib/snap/snap.svg.js"/>
             <script type="text/javascript" src="/web_fgantt/static/lib/frappe/frappe-gantt.js"/>
+            
             <script type="text/javascript" src="/web_fgantt/static/src/js/gantt_view.js"/>
             <script type="text/javascript" src="/web_fgantt/static/src/js/gantt_renderer.js"/>
             <script type="text/javascript" src="/web_fgantt/static/src/js/gantt_controller.js"/>
             <script type="text/javascript" src="/web_fgantt/static/src/js/gantt_model.js"/>
-            <script type="text/javascript" src="/web_fgantt/static/src/js/gantt_canvas.js"/>
         </xpath>
     </template>
 

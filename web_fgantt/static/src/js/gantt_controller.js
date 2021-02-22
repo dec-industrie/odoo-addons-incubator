@@ -12,7 +12,7 @@ odoo.define('web_fgantt.GanttController', function (require) {
     var GanttController = AbstractController.extend({
         custom_events: _.extend({}, AbstractController.prototype.custom_events, {
             onDateChange: '_onDateChange',
-            // TODO: Add "open/edit action"
+            // TODO: Add "open/edit action" on double-click (need double-click support in frappe-gantt)
             onOpenEdit: '_onOpenEdit',
             // TODO: Add group support to frappe-gantt
             onGroupClick: '_onGroupClick',
@@ -108,6 +108,7 @@ odoo.define('web_fgantt.GanttController', function (require) {
                 var diff_seconds = Math.round((task_end.getTime() - task_start.getTime()) / 1000);
                 data[this.date_delay] = diff_seconds / 3600;
             }
+            console.log('data', data)
 
             // TODO: Add group support to frappe-gantt
             var group = false;
@@ -179,7 +180,6 @@ odoo.define('web_fgantt.GanttController', function (require) {
         /**
          * Opens a form view of a clicked gantt item 
          * (triggered by the GanttRenderer).
-         * TODO: Add "open/edit action"
          * 
          * @private
          */
@@ -200,7 +200,9 @@ odoo.define('web_fgantt.GanttController', function (require) {
                     on_saved: function () {
                         self.write_completed();
                     },
-                }).open();
+                }).open().on('closed', this, function () {
+                    event.data.callback();
+                });
             } else {
                 var mode = 'readonly';
                 if (rights.write) {
